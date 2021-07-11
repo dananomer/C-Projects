@@ -3,7 +3,9 @@ a c-based bank managment system (in-development)
 
 
 Functions used in Bank Management System:
-The source code for Customer Account Bank Management System is relatively short and easy to understand. I have divided this C mini project into many functions, most of which are related to different banking activities. Listed below are some of the more important functions which may help you understand the project better.
+The source code for Customer Account Bank Management System 
+
+Methods: 
 
 menu() – This function displays the menu or welcome screen to perform different banking activities mentioned below.
 
