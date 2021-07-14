@@ -3,12 +3,15 @@
 //
 #include <stdio.h>
 #include "Accounts.h"
+#include "string.h"
 
-struct Bank{
-    Accounts account_Set[100];
-};
 int main() {
-
+    Bank bank;
+    initBank(&bank);
+    while(1)
+    {
+        mainMenu(&bank);
+    }
     printf("Hello, World!");
     return 0;
 }
