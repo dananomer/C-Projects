@@ -1,17 +1,12 @@
-//
-// Created by omerd on 7/11/2021.
-//
 #include <stdio.h>
 #include "Accounts.h"
-#include "string.h"
+#include<unistd.h>
 
 int main() {
+    chdir("..");
     Bank bank;
     initBank(&bank);
-    while(1)
-    {
-        mainMenu(&bank);
-    }
-    printf("Hello, World!");
+    mainMenu(&bank);
+    printf("Bank is closing\n");
     return 0;
 }

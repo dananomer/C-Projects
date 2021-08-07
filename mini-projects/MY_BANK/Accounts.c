@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "Accounts.h"
+#include <sys/stat.h>
 
 int getInput(char *question, char *inputBuffer, int bufferLength)
 {
@@ -25,16 +26,17 @@ int getInput(char *question, char *inputBuffer, int bufferLength)
     {
         inputBuffer[strlen(inputBuffer) -1] = '\0';
     }
-    return strlen(inputBuffer);
+    return (int)strlen(inputBuffer);
 }
 
 int mainMenu(Bank* bank) {
     int choice;
-    char current_logged_account[16] = ADMIN_NUMBER;
+    char* current_logged_account = (char*)calloc(ACCOUNT_NUM_SIZE+1,sizeof(char));
+    strcpy(current_logged_account,ADMIN_NUMBER);
     char input_buffer[256] = "";
     do
     {
-        //TODO: loginDocument();
+
         printf("Menu\n\n");
         printf("1. create new account\n");
         printf("2. remove existing account\n");
@@ -47,44 +49,77 @@ int mainMenu(Bank* bank) {
         printf("9. exit\n");
 
         fgets(input_buffer, 256, stdin);
-        choice = atoi(input_buffer);
+        choice = strtol(input_buffer,NULL,10);
         switch (choice)
         {
             case 1:
-                createNewAccount(bank);
+                createNewAccount(bank,&current_logged_account);
                 break;
             case 2:
-                removeExistingAccount(bank);
+                removeExistingAccount(bank,&current_logged_account);
                 break;
-//            case 3:
-//                loginExistingAccount(bank);
-//                break;
+            case 3:
+                loginExistingAccount(bank,&current_logged_account);
+                break;
             case 4:
-                listAccounts(bank);
+                listAccounts(bank,&current_logged_account);
                 break;
-//            case 5:
-//                retrievePassword(bank);
-//                break;
-//            case 6:
-//                editAccount(bank);
-//                break;
-//            case 7:
+            case 5:
+                viewAccountDetails(bank,&current_logged_account);
+                break;
+
+            case 6:
+                retrievePassword(bank,&current_logged_account);
+                break;
+            case 7:
+                editAccount(bank);
+                break;
+//            case 8:
 //                transitFromDeposit(bank);
 //                break;
-//            case 8:
-//                exitBank(bank);
-//                break;
-//            default:
-//                printf("Wrong Choice. Enter again\n");
-//                break;
+            case 9:
+                exitBank(bank,&current_logged_account));
+                break;
+            default:
+                printf("Wrong Choice. Enter again\n");
+                break;
         }
 
-    } while (choice != 8);
+    } while (choice != 9);
     return 0;
 }
 size_t getSize(Bank* bank){
     size_t size = sizeof(*bank) / sizeof(Accounts*);
     return size;
+}
+void copyFromFile(Bank* bank) {
+
+    FILE *reads;
+
+    char filename[10] = "";
+    int temp;
+
+    getInput("Type in name of the file",filename,10);
+    reads = fopen(filename, "r");
+    if (reads == NULL) {
+        perror("Error");
+        exit(1);
+    } else {
+        int counter = 1;
+        while (!feof(reads)) {
+            bank->account_set[counter] = (Accounts *) calloc(1, sizeof(Accounts));
+            fscanf(reads, "%s %s %s %d %d",
+                   &(bank->account_set[counter]->account_name),
+                   &(bank->account_set[counter]->account_number),
+                   &(bank->account_set[counter]->account_code),
+                   &(bank->account_set[counter]->currency_type),
+                   &(bank->account_set[counter]->current_balance)
+            );
+            bank->account_set[counter]->enabled = ACCOUNT_ENABLE;
+
+            counter++;
+        }
+    }
 }
 void initBank(Bank* bank) {
     size_t size = getSize(bank);
@@ -100,6 +135,9 @@ void initBank(Bank* bank) {
     bank->account_set[0]->currency_type = CURR_TYPE_INIT;
     bank->account_set[0]->current_balance = CURR_BAL_INIT;
     bank->account_set[0]->enabled = ACCOUNT_ENABLE;
+
+    copyFromFile(bank);
+
 }
 void buildAccount(Bank *bank,int index){
     char input_buffer[256] = "";
@@ -130,20 +168,26 @@ void buildAccount(Bank *bank,int index){
     buffer_length = ACCOUNT_TYPE_SIZE+1;
     strcpy(question_buffer,"Enter Currency type");
     getInput(question_buffer, input_buffer, buffer_length);
-    bank->account_set[index]->currency_type = atoi(input_buffer);
+    bank->account_set[index]->currency_type = strtol(input_buffer,NULL,10);
 
     buffer_length = ACCOUNT_BAL_SIZE+1;
     strcpy(question_buffer,"Enter Account initial balance");
     getInput(question_buffer,input_buffer,buffer_length);
-    bank->account_set[index]->current_balance = atoi(input_buffer);
+    bank->account_set[index]->current_balance = strtol(input_buffer,NULL,10);
 
     bank->account_set[index]->enabled = ACCOUNT_ENABLE;
 
+
 }
-void createNewAccount(Bank *bank) {
+void createNewAccount(Bank *bank,char ** current_logged_account) {
+    if(strcmp(*current_logged_account, ADMIN_NUMBER) != 0)
+    {
+        printf("cannot add new account from unsupervised account, return to main menu\n");
+        return;
+    }
     size_t size = getSize(bank);
-    int account_index;
-    for(int i=0;i<size;i++)
+    int account_index = 0;
+    for(int i=0;i < size;i++)
     {
         if(bank->account_set[i] == NULL ||
         bank->account_set[i]->enabled == ACCOUNT_DISABLE)
@@ -156,8 +200,13 @@ void createNewAccount(Bank *bank) {
     buildAccount(bank,account_index);
 }
 
-void removeExistingAccount(Bank *bank) {
+void removeExistingAccount(Bank *bank,char ** current_logged_account) {
 
+    if(strcmp(*current_logged_account, ADMIN_NUMBER) != 0)
+    {
+        printf("cannot delete existing account from unsupervised account, return to main menu\n");
+        return;
+    }
     char input_buffer[256] = "";
     char question_buffer[256] = "";
     char query_number[ACCOUNT_NUM_SIZE+1] = "";
@@ -172,7 +221,6 @@ void removeExistingAccount(Bank *bank) {
     strncpy(query_number,input_buffer,input_size+1);
 
     size_t size = getSize(bank);
-    int account_index;
     for (int i = 0; i < size; i++) {
         if (bank->account_set[i] != NULL) {
             if(bank->account_set[i]->enabled == ACCOUNT_ENABLE)
@@ -187,13 +235,253 @@ void removeExistingAccount(Bank *bank) {
     }
 }
 
-void listAccounts(Bank *bank) {
+void listAccounts(Bank *bank,char ** current_logged_account) {
 
+    if(strcmp(*current_logged_account, ADMIN_NUMBER) != 0)
+    {
+        printf("cannot add new account from unsupervised account, return to main menu\n");
+        return;
+    }
+
+    printf("Listing all registered bank accounts\n");
     size_t size = getSize(bank);
-    int account_index;
+    int status;
     for (int i = 0; i < size; i++) {
         if (bank->account_set[i] != NULL) {
+            printf("Index: %d\n",i);
+            printf("Name: %s\n",bank->account_set[i]->account_name);
+            printf("Account Number: %s\n",bank->account_set[i]->account_number);
+            printf("Account Access Code: %s\n",bank->account_set[i]->account_code);
+            printf("Account Type: %d\n",bank->account_set[i]->currency_type);
+            printf("Account Current Balance: %d\n",bank->account_set[i]->current_balance);
+            status = bank->account_set[i]->enabled;
+            if(status)
+                printf("Status: Enabled\n\n");
+            else
+                printf("Status: Disabled\n\n");
+
+        }
+    }
+}
+
+void exitBank(Bank *bank, char ** current_logged_account_ptr) {
+    size_t size = getSize(bank);
+    for(int i=0;i<size;i++)
+    {
+        if(bank->account_set[i] != NULL)
+        {
+            free(bank->account_set[i]);
+            bank->account_set[i] = NULL;
+        }
+
+    }
+    free(current_logged_account_ptr);
+}
+
+void editAccount(Bank *bank) {
+
+    char input_buffer[256] = "";
+    char question_buffer[256] = "";
+    char query_number[ACCOUNT_NUM_SIZE+1] = "";
+    int buffer_length;
+    int input_size;
+
+    buffer_length = ACCOUNT_NUM_SIZE+1;
+    strcpy(question_buffer,"Enter Account number you wish to edit");
+    input_size = getInput(question_buffer,input_buffer,buffer_length);
+    input_buffer[input_size] = '\0';
+    printf("input size is %d\n",input_size);
+    strncpy(query_number,input_buffer,input_size+1);
+
+    size_t size = getSize(bank);
+    for (int i = 0; i < size; i++) {
+        if (bank->account_set[i] != NULL) {
+            if (bank->account_set[i]->enabled == ACCOUNT_ENABLE) {
+                if (strcmp(bank->account_set[i]->account_number, query_number) == 0) {
+                    editMenu(bank,i);
+                    break;
+                }
+            }
+        }
+    }
+}
+
+void editMenu(Bank *bank, int account_index) {
+    int choice;
+    char input_buffer[256] = "";
+    char question_buffer[256] = "";
+    int buffer_length = 0;
+    int input_size = 0;
+    do
+    {
+        printf("Edit Menu\n\n");
+        printf("1. edit account name\n");
+        printf("2. edit account number\n");
+        printf("3. return\n");
+
+        fgets(input_buffer, 256, stdin);
+        choice = strtol(input_buffer,NULL,10);
+        switch (choice)
+        {
+            case 1:
+                buffer_length = ACCOUNT_NAME_SIZE+1;
+                strcpy(question_buffer,"Enter new Name");
+                input_size = getInput(question_buffer,input_buffer,buffer_length);
+                input_buffer[input_size] = '\0';
+                strncpy(bank->account_set[account_index]->account_name,input_buffer,input_size+1);
+                break;
+            case 2:
+                buffer_length = ACCOUNT_NUM_SIZE+1;
+                strcpy(question_buffer,"Enter new Account number");
+                input_size = getInput(question_buffer,input_buffer,buffer_length);
+                input_buffer[input_size] = '\0';
+                strncpy(bank->account_set[account_index]->account_number,input_buffer,input_size+1);
+                break;
+            case 3:
+                printf("Account remain unchanged, return to main menu\n");
+                break;
+            default:
+                printf("Wrong Choice. Enter again\n");
+                break;
+        }
+
+    } while (choice != 3);
+}
+
+void loginExistingAccount(Bank *bank, char **current_logged_account_ptr) {
+
+    char input_buffer[256] = "";
+    char question_buffer[256] = "";
+    char query_number[ACCOUNT_NUM_SIZE+1] = "";
+    int buffer_length;
+    int input_size;
+
+    buffer_length = ACCOUNT_NUM_SIZE+1;
+    strcpy(question_buffer,"Enter Account number you wish to login");
+    input_size = getInput(question_buffer,input_buffer,buffer_length);
+    input_buffer[input_size] = '\0';
+    printf("input size is %d\n",input_size);
+    strncpy(query_number,input_buffer,input_size+1);
+
+
+    size_t size = getSize(bank);
+    for (int i = 0; i < size; i++) {
+        if (bank->account_set[i] != NULL) {
+            if (bank->account_set[i]->enabled == ACCOUNT_ENABLE) {
+                if (strcmp(bank->account_set[i]->account_number, query_number) == 0) {
+                    if(checkCredentials(bank,i,query_number))
+                    {
+                        printf("login as %s\n",bank->account_set[i]->account_name);
+                        strncpy(*current_logged_account_ptr,bank->account_set[i]->account_number,input_size+1);
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
+}
+
+int checkCredentials(Bank *bank, int index,char* query_number) {
+
+    char input_buffer[256] = "";
+    char question_buffer[256] = "";
+    char code_number[ACCOUNT_CODE_SIZE+1] = "";
+    int buffer_length;
+    int input_size;
+
+
+    int tries = 3;
+    while(tries > 0)
+    {
+        buffer_length = ACCOUNT_CODE_SIZE+1;
+        strcpy(question_buffer,"Enter Code to login");
+        input_size = getInput(question_buffer,input_buffer,buffer_length);
+        input_buffer[input_size] = '\0';
+        printf("input size is %d\n",input_size);
+        strncpy(query_number,input_buffer,input_size+1);
+
+        if(strcmp(query_number,bank->account_set[index]->account_code) == 0)
+        {
+            return 1;
+        }
+        else if(tries > 1)
+        {
+            printf("Wrong code try again - %d more tries left\n",tries);
+            tries--;
+
+        }
+        else
+        {
+            printf("You failed the third time, return to menu...\n");
+            return 0;
+        }
+    }
+}
+
+
+void viewAccountDetails(Bank *bank, char **current_logged_account_ptr) {
+
+    size_t size = getSize(bank);
+    for(int i=0;i< size;i++)
+    {
+        if(strcmp(*current_logged_account_ptr,bank->account_set[i]->account_number) == 0) {
+            printf("List account details of logged account:\n");
+            printf("Name: %s\n",bank->account_set[i]->account_name);
+            printf("Account Number: %s\n",bank->account_set[i]->account_number);
+            printf("Account Access Code: %s\n",bank->account_set[i]->account_code);
+            printf("Account Type: %d\n",bank->account_set[i]->currency_type);
+            printf("Account Current Balance: %d\n",bank->account_set[i]->current_balance);
             return;
         }
     }
 }
+
+void retrievePassword(Bank *bank, char **current_logged_account_ptr) {
+
+    size_t size = getSize(bank);
+
+    if(strcmp(*current_logged_account_ptr, ADMIN_NUMBER) == 0)
+    {
+        char input_buffer[256] = "";
+        char question_buffer[256] = "";
+        char query_number[ACCOUNT_NUM_SIZE+1] = "";
+        int buffer_length;
+        int input_size;
+
+        buffer_length = ACCOUNT_NUM_SIZE+1;
+        strcpy(question_buffer,"Enter Account number you wish to retrieve password");
+        input_size = getInput(question_buffer,input_buffer,buffer_length);
+        input_buffer[input_size] = '\0';
+        printf("input size is %d\n",input_size);
+        strncpy(query_number,input_buffer,input_size+1);
+
+        for(int i=0;i< size;i++)
+        {
+            if(strcmp(query_number,bank->account_set[i]->account_number) == 0) {
+                printf("retrieve user password:\n");
+                printf("Access Code: %s\n",bank->account_set[i]->account_code);
+                return;
+            }
+        }
+
+        return;
+    }
+    else
+    {
+        for(int i=0;i< size;i++)
+        {
+            if(strcmp(*current_logged_account_ptr,bank->account_set[i]->account_number) == 0) {
+                printf("retreive current user's password:\n");
+                printf("Access Code: %s\n",bank->account_set[i]->account_code);
+                return;
+            }
+        }
+    }
+
+}
+
+void transitFromDeposit(Bank *bank) {
+
+}
+

@@ -1,15 +1,9 @@
-//
-// Created by omerd on 7/11/2021.
-//
-
 #ifndef MY_BANK_ACCOUNTS_H
 #define MY_BANK_ACCOUNTS_H
 
 #define ADMIN_NUMBER "FFFF"
 #define ADMIN_NAME "admin"
 
-#define ACC_NAME_INIT "0000000000"
-#define ACC_NUM_INIT "0000"
 #define ACC_CODE_INIT "000"
 #define CURR_TYPE_INIT 0
 #define CURR_BAL_INIT 0
@@ -51,24 +45,32 @@ int mainMenu(Bank* bank);
 
 size_t getSize(Bank* bank);
 
+void copyFromFile(Bank* bank);
+
 void initBank(Bank* bank);
 
 void buildAccount(Bank *bank,int index);
 
-void createNewAccount(Bank* bank);
+void createNewAccount(Bank* bank,char ** current_logged_account);
 
-void removeExistingAccount(Bank* bank);
+void removeExistingAccount(Bank* bank,char ** current_logged_account);
 
-void loginExistingAccount(Bank* bank);
+void loginExistingAccount(Bank* bank,char** current_logged_account_ptr);
 
-void listAccounts(Bank* bank);
+int checkCredentials(Bank* bank,int index,char* query_number);
 
-void retrievePassword(Bank* bank);
+void listAccounts(Bank* bank,char ** current_logged_account);
+
+void viewAccountDetails(Bank* bank, char **current_logged_account_ptr);
+
+void retrievePassword(Bank* bank, char **current_logged_account_ptr);
 
 void editAccount(Bank* bank);
 
+void editMenu(Bank* bank,int account_index);
+
 void transitFromDeposit(Bank* bank);
 
-void exitBank(Bank* bank);
+void exitBank(Bank* bank, char **current_logged_account_ptr);
 
 #endif //MY_BANK_ACCOUNTS_H
